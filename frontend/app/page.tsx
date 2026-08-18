@@ -2,7 +2,9 @@
 
 import { useRef, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Empty means same-origin: on Vercel the top-level rewrite sends /api to the
+// backend service. Local dev sets NEXT_PUBLIC_API_URL in .env.local.
+const API = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const LANGS = [
   { code: "en", label: "English" },
