@@ -176,12 +176,22 @@ hit an instance that doesn't have the file.
 
 ### Frontend — Vercel
 
+`vercel.json` at the repo root points Vercel at `frontend/`, so deploy from the
+root and let it pick the config up:
+
 ```bash
-cd frontend
 vercel
 ```
 
 Set `NEXT_PUBLIC_API_URL` to the deployed backend origin.
+
+**The backend does not go on Vercel.** It is a long-running service, not a set of
+serverless functions: jobs live in an in-process dict, files are written to
+`backend/tmp/` on local disk, and a 30-page translation streams SSE progress for
+minutes. On Vercel each invocation would get a fresh, empty instance and hit the
+function duration limit mid-job. Deploy it as a container instead (see above) and
+point the frontend at it. Moving it onto serverless means the Redis + object
+storage rework described under "Note on temp storage", not a config change.
 
 ### Before public launch
 
