@@ -174,37 +174,42 @@ in an in-memory dict. This works on a single instance. Before scaling to more
 than one, move job state to Redis and files to object storage, or requests will
 hit an instance that doesn't have the file.
 
-### Frontend — Vercel
+### Both services — Vercel
 
-This repo has two services at the root, so Vercel needs to be told where the
-app is. **Set the project's Root Directory to `frontend`** (Vercel dashboard →
-Project → Settings → Build & Deployment → Root Directory).
+The repo has two services at its root, so Vercel needs a root `vercel.json`
+declaring them. `services` builds each one separately and top-level `rewrites`
+decide which handles a request:
 
-That setting is what makes the build work, not `frontend/vercel.json`. Vercel
-reads the Next.js version out of the `package.json` in the Root Directory before
-it runs any build command — pointed at the repo root it finds the Python backend,
-no `next` dependency, and fails with `No Next.js version detected`. A root-level
-`vercel.json` cannot fix this, because detection happens before its
-`buildCommand` runs.
-
-Once Root Directory is set, deploy from the repo root as usual:
-
-```bash
-vercel
+```json
+{
+  "services": {
+    "web": { "root": "frontend/", "framework": "nextjs" },
+    "api": { "root": "backend/",  "framework": "fastapi", "entrypoint": "app.main:app" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "api" } },
+    { "source": "/(.*)",     "destination": { "service": "web" } }
+  ]
+}
 ```
 
-`frontend/vercel.json` is read relative to the Root Directory and just pins the
-framework and build output.
+Services are internal unless a rewrite exposes them, and both end up on one
+origin — so the frontend calls `/api/...` relative and `NEXT_PUBLIC_API_URL` is
+left unset in production. It is only needed for local dev, where the two run on
+different ports.
 
-Set `NEXT_PUBLIC_API_URL` to the deployed backend origin.
+The `api` service runs `scripts/fetch_fonts.sh` during install, because
+`backend/fonts/*.ttf` is gitignored and PyMuPDF renders Telugu and Devanagari as
+empty boxes without it.
 
-**The backend does not go on Vercel.** It is a long-running service, not a set of
-serverless functions: jobs live in an in-process dict, files are written to
-`backend/tmp/` on local disk, and a 30-page translation streams SSE progress for
-minutes. On Vercel each invocation would get a fresh, empty instance and hit the
-function duration limit mid-job. Deploy it as a container instead (see above) and
-point the frontend at it. Moving it onto serverless means the Redis + object
-storage rework described under "Note on temp storage", not a config change.
+> **This deploys, but do not treat it as production.** Jobs live in an
+> in-process dict and files are written to `backend/tmp/` on local disk, so
+> `/api/upload` and the `/api/translate/{job_id}` stream that follows it are not
+> guaranteed to land on the same instance — a job created by one request can be
+> missing from the next. A 30-page translation also streams SSE for minutes,
+> which sits badly with function duration limits. Fine for a preview or a demo;
+> for real traffic run the backend as a container (above) and do the Redis +
+> object storage work described under "Note on temp storage".
 
 ### Before public launch
 
