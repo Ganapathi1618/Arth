@@ -176,12 +176,25 @@ hit an instance that doesn't have the file.
 
 ### Frontend — Vercel
 
-`vercel.json` at the repo root points Vercel at `frontend/`, so deploy from the
-root and let it pick the config up:
+This repo has two services at the root, so Vercel needs to be told where the
+app is. **Set the project's Root Directory to `frontend`** (Vercel dashboard →
+Project → Settings → Build & Deployment → Root Directory).
+
+That setting is what makes the build work, not `frontend/vercel.json`. Vercel
+reads the Next.js version out of the `package.json` in the Root Directory before
+it runs any build command — pointed at the repo root it finds the Python backend,
+no `next` dependency, and fails with `No Next.js version detected`. A root-level
+`vercel.json` cannot fix this, because detection happens before its
+`buildCommand` runs.
+
+Once Root Directory is set, deploy from the repo root as usual:
 
 ```bash
 vercel
 ```
+
+`frontend/vercel.json` is read relative to the Root Directory and just pins the
+framework and build output.
 
 Set `NEXT_PUBLIC_API_URL` to the deployed backend origin.
 
